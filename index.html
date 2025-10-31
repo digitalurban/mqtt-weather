@@ -1,797 +1,393 @@
- 
-      <title>MQTT Environment Dashboard</title>
-	   
-<!--Script to change the backgound colour according to temperature from the mqtt data-->	   
-	   
-   <script  type = "text/javascript" language = "javascript">
-		   
-		   function changeBodyBg(color){
-		  
-		  document.body.style.background = color;
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>MQTT Environment Dashboard</title>
+
+  <!--Style Sheets-->
+  <link href="./css/dashboardmqtt.css" rel="stylesheet" type="text/css"/>
+  <link href="./weather-icons-master/css/weather-icons.css" rel="stylesheet" type="text/css"/>
+
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.js" type="text/javascript"></script>
+
+  <script type="text/javascript">
+    // helper
+    function changeBodyBg(color) { document.body.style.background = color; }
+
+    // MQTT variables
+    var mqtt = null;
+    var reconnectTimeout = 2000;
+    var host = "";
+    var port = 0;
+    var clientID = "clientID" + Math.floor(Math.random() * 10000);
+
+    // choose host/port depending on protocol
+    if (location.protocol !== 'https:') {
+      host = "mqtt.cetools.org";
+      port = 8080;
+    } else {
+      host = "mqtt.cetools.org";
+      port = 8081;
     }
-	    </script> 
-	   
-<!--Style Sheets-->	   
-	   
-	   <link href="./css/dashboardmqtt.css" rel="stylesheet" type="text/css"/>
-	   
-	   <link href="./weather-icons-master/css/weather-icons.css" rel="stylesheet" type="text/css"/>
-	   
-	   <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
 
-  	   <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.js" type="text/javascript"></script>
-	   
-<!--MQTT Connect-->
-		  
-	 
-	 <script type = "text/javascript" language = "javascript">
-		var mqtt;
-		var reconnectTimeout = 2000;
-		var host="mqtt.cetools.org"; //change this
-		var port=8081;
+    function onConnect() {
+      console.log("MQTT connected to " + host + ":" + port + " as " + clientID);
+      $("#mqttconnection").html("mqtt: connected");
 
-	    client = new Paho.MQTT.Client("www.finchamweather.co.uk", 8081, "myClientId");
-        client.useSSL = false;
-		
-		function onFailure(message) {
-			console.log("Connection Attempt to Host "+host+"Failed");
-			setTimeout(MQTTconnect, reconnectTimeout);
-			$("#mqttconnection").html("mqtt: disconnected");	
+      // subscribe to relevant topics
+      try { mqtt.subscribe("personal/ucfnaps/#"); }
+      catch (e) { console.warn('subscribe error', e); }
+
+      mqtt.onMessageArrived = decode;
+    }
+
+    function onFailure(message) {
+      console.log("Connection attempt to host " + host + " failed", message);
+      $("#mqttconnection").html("mqtt: disconnected");
+      setTimeout(MQTTconnect, reconnectTimeout);
+    }
+
+    function onConnectionLost(responseObject) {
+      console.log("Connection lost", responseObject);
+      $("#mqttconnection").html("mqtt: disconnected");
+      if (responseObject && responseObject.errorCode !== 0) {
+        setTimeout(MQTTconnect, reconnectTimeout);
+      }
+    }
+
+    function MQTTconnect() {
+      console.log("Connecting to " + host + " " + port + " ...");
+      mqtt = new Paho.MQTT.Client(host, Number(port), clientID);
+
+      mqtt.onConnectionLost = onConnectionLost;
+      mqtt.onMessageArrived = decode;
+
+      var options = {
+        timeout: 3,
+        onSuccess: onConnect,
+        onFailure: onFailure,
+        useSSL: (location.protocol === 'https:')
+      };
+
+      try { mqtt.connect(options); }
+      catch (e) { console.error('MQTT connect error:', e); setTimeout(MQTTconnect, reconnectTimeout); }
+    }
+
+    function decode(msg) {
+      var t = msg.destinationName;
+      var p = msg.payloadString;
+      console.log('MSG', t, p);
+
+      var directMap = {
+        "personal/ucfnaps/downhamweather/tempmax": "#tempmax",
+        "personal/ucfnaps/downhamweather/tempmin": "#tempmin",
+        "personal/ucfnaps/downhamweather/pressuremax": "#baromax",
+        "personal/ucfnaps/downhamweather/pressuremin": "#baromin",
+        "personal/ucfnaps/eink/met/headline": "#currentcond",
+        "personal/ucfnaps/airquality/davisaqi": "#AQI",
+        "personal/ucfnaps/airquality/davisquality": "#aqiquality",
+        "personal/ucfnaps/airquality/davispm25": "#pmtwo",
+        "personal/ucfnaps/airquality/davispm10": "#pmten",
+        "personal/ucfnaps/airquality/davistrend": "#pmtrend",
+        "personal/ucfnaps/environ/marham": "#marham",
+        "personal/ucfnaps/environ/ely": "#ely",
+        "personal/ucfnaps/environ/denver": "#denver",
+        "personal/ucfnaps/downhamweather/temptrend": "#temptrend",
+        "personal/ucfnaps/downhamweather/windmax": "#windmaxgust"
+      };
+
+      if (directMap[t]) { $(directMap[t]).html(p); return; }
+
+      if (t === "personal/ucfnaps/downhamweather/barotrend") {
+        var pressurehour = p.replace('mbar', '').trim();
+        $("#pbarohour").html(pressurehour);
+        var ph = parseFloat(pressurehour);
+        if (isNaN(ph)) { $("#pressuretrend").html("unknown"); }
+        else if (ph >= -0.7 && ph <= 0.7) { $("#pressuretrend").html("steady"); }
+        else if (ph > 0.7) { $("#pressuretrend").html("rising"); }
+        else { $("#pressuretrend").html("falling"); }
+        return;
+      }
+
+      if (t === "personal/ucfnaps/downhamweather/loop") {
+        try {
+          var data = JSON.parse(p);
+
+          var wind = parseFloat(data['windSpeed_mph']);
+          if (!isNaN(wind)) { $("#wind").html(wind); }
+
+          var windspeed10 = parseFloat(data['windSpeed10_mps']);
+          if (!isNaN(windspeed10)) { $("#windspeed10").html((windspeed10 * 2.23694).toFixed(1)); }
+
+          // Beaufort-style ranges
+          if (!isNaN(wind)) {
+            if (wind >= 73) $("#beaufort").html("hurricane");
+            else if (wind >= 64) $("#beaufort").html("violent storm");
+            else if (wind >= 56) $("#beaufort").html("storm");
+            else if (wind >= 48) $("#beaufort").html("strong gale");
+            else if (wind >= 41) $("#beaufort").html("gale");
+            else if (wind >= 34) $("#beaufort").html("near gale");
+            else if (wind >= 28) $("#beaufort").html("strong breeze");
+            else if (wind >= 22) $("#beaufort").html("stiff breeze");
+            else if (wind >= 17) $("#beaufort").html("moderate breeze");
+            else if (wind >= 11) $("#beaufort").html("gentle breeze");
+            else if (wind >= 7) $("#beaufort").html("light breeze");
+            else if (wind >= 4) $("#beaufort").html("slight breeze");
+            else $("#beaufort").html("calm");
+          }
+
+          var winddir = parseFloat(data['windDir']);
+          if (!isNaN(winddir)) {
+            var dir = 'N';
+            if (winddir >= 348.75 || winddir < 11.25) dir = 'N';
+            else if (winddir < 33.75) dir = 'NNE';
+            else if (winddir < 56.25) dir = 'NE';
+            else if (winddir < 78.75) dir = 'ENE';
+            else if (winddir < 101.25) dir = 'E';
+            else if (winddir < 123.75) dir = 'ESE';
+            else if (winddir < 146.25) dir = 'SE';
+            else if (winddir < 168.75) dir = 'SSE';
+            else if (winddir < 191.25) dir = 'S';
+            else if (winddir < 213.75) dir = 'SSW';
+            else if (winddir < 236.25) dir = 'SW';
+            else if (winddir < 258.75) dir = 'WSW';
+            else if (winddir < 281.25) dir = 'W';
+            else if (winddir < 303.75) dir = 'WNW';
+            else if (winddir < 326.25) dir = 'NW';
+            else dir = 'NNW';
+            $("#winddir").html(dir);
+          }
+
+          if (data['outTemp_C'] !== undefined) {
+            $("#temp").html(data['outTemp_C']);
+            var temp = parseFloat(data['outTemp_C']);
+            if (!isNaN(temp)) {
+              if (temp >= 25) changeBodyBg('#dc343b');
+              else if (temp >= 20) changeBodyBg('#f2552c');
+              else if (temp >= 15) changeBodyBg('#ff9926');
+              else if (temp >= 10) changeBodyBg('#f3c12c');
+              else if (temp >= 5) changeBodyBg('#45B8AC');
+              else if (temp >= 0) changeBodyBg('#009cdc');
+              else changeBodyBg('#7CA6DE');
+            }
+          }
+
+          if (data['appTemp_C'] !== undefined) { var apptemp = parseFloat(data['appTemp_C']); if (!isNaN(apptemp)) $("#apptemp").html(apptemp.toFixed(1)); }
+          if (data['dayRain_mm'] !== undefined) $("#rain").html(data['dayRain_mm']);
+          if (data['rainRate_mm_per_hour'] !== undefined) { var rr = parseFloat(data['rainRate_mm_per_hour']); if (!isNaN(rr)) $("#rainrate").html(rr.toFixed(1)); }
+          if (data['barometer_mbar'] !== undefined) $("#baro").html(data['barometer_mbar']);
+          if (data['radiation_Wpm2'] !== undefined) $("#solar").html(data['radiation_Wpm2']);
+          if (data['outHumidity'] !== undefined) $("#humidity").html(data['outHumidity']);
+          if (data['UV'] !== undefined) $("#uv").html(data['UV']);
+          if (data['cloudbase_meter'] !== undefined) $("#cloudheight").html(data['cloudbase_meter']);
+          if (data['dewpoint_C'] !== undefined) { var dp = parseFloat(data['dewpoint_C']); if (!isNaN(dp)) $("#dewpoint").html(dp.toFixed(1)); }
+
+        } catch (e) {
+          console.warn("Failed to parse JSON payload for loop topic", e);
         }
-		
-	 <!--MQTT Connect-->
-		  
-	 
-	 <script type = "text/javascript" language = "javascript">
-		var mqtt;
-		var reconnectTimeout = 2000;
+      }
+    }
 
-		var host = "";
-		var port = 0;
-		var options = {}; 
-
-		if (location.protocol !== 'https:') {
-   			port = 8080;
-			host = "mqtt.cetools.org";  
-			options = {
-				timeout: 3,
-				onSuccess: onConnect,
-				onFailure: onFailure,
-				useSSL: false,
-			}; 
-		}
-		else {
-    		port = 8081;
-			host = "mqtt.cetools.org";  
-			options = {
-				timeout: 3,
-				onSuccess: onConnect,
-				onFailure: onFailure,
-				useSSL: true,
-			}; 
-		}
-		var clientID = "clientID" + parseInt(Math.random() * 100); 
-		
-		function onFailure(message) {
-			console.log("Connection Attempt to Host "+host+"Failed");
-			setTimeout(MQTTconnect, reconnectTimeout);
-			$("#mqttconnection").html("mqtt: disconnected");	
-        }
-		
-		 
-	  function MQTTconnect() {
-		console.log("connecting to "+ host +" "+ port);
-		mqtt = new Paho.MQTT.Client(host, Number(port), clientID);
-		//document.write("connecting to "+ host);
-		var options = {
-			timeout: 3,
-			onSuccess: onConnect,
-			onFailure: onFailure,
-			 };
-		
-		mqtt.onMessageArrived = decode
-		
-		
-		mqtt.connect(options); //connect
-		}
-		 
-		 
-// Decodes the ClientRaw Data and send to the various div files on each data uptate
-		 
-		  function decode(msg){
-			  
-			  
-			// Max/Mins Additional Data from WEEWX JSON
-			if(msg.destinationName == "personal/ucfnaps/downhamweather/tempmax"){   
-			tempmax=msg.payloadString;
-		 	$("#tempmax").html(tempmax);
-			console.log(tempmax);
-				}   
-			  
-			if(msg.destinationName == "personal/ucfnaps/downhamweather/tempmin"){   
-			tempmin=msg.payloadString;
-		 	$("#tempmin").html(tempmin);
-			console.log(tempmin);
-				}   
-			  
-			
-			 if(msg.destinationName == "personal/ucfnaps/downhamweather/pressuremax"){   
-		    pressuremax=msg.payloadString;
-		 	$("#baromax").html(pressuremax);
-			console.log(pressuremax);
-				}   
-			  
-			if(msg.destinationName == "personal/ucfnaps/downhamweather/pressuremin"){   
-			pressuremin=msg.payloadString;
-		 	$("#baromin").html(pressuremin);
-			console.log(pressuremin);
-				}    
-			  
-			    
-			if(msg.destinationName == "personal/ucfnaps/downhamweather/barotrend"){   
-			pressurehour=msg.payloadString.replace('mbar', '')
-			$("#pbarohour").html(pressurehour);
-		    console.log(pressurehour);
-			 
- // Pressure Trend Text
-			 
-			if ((pressurehour >= -0.7) && (pressurehour <= 0.7))
-			 {
-				 $("#pressuretrend").html("steady");
-			 }
-   			if ((pressurehour > 0.7) && (pressurehour < 2.0))
-			  {
-				 $("#pressuretrend").html("rising");
-			 }
-   			if (pressurehour >= 2.0)
-									   {
-				 $("#pressuretrend").html("rising");
-			 }
-   			if ((pressurehour < -0.7) && (pressurehour > -2.0))
-									   {
-				 $("#pressuretrend").html("falling");
-			 }
-									  
-   			if (pressurehour <= -2.0)
-			  {
-				 $("#pressuretrend").html("falling");
-			 }
-			  
-			}
-			  
-// Temp Trend
-			  
-			  
-			if(msg.destinationName == "personal/ucfnaps/downhamweather/temptrend"){   
-			temptrend=msg.payloadString;
-			$("#temptrend").html(temptrend);
-		    console.log(temptrend);	
-			}
-// Wind Max			  
-			if(msg.destinationName == "personal/ucfnaps/downhamweather/windmax"){   
-			windmax=msg.payloadString;
-		 	$("#windmaxgust").html(windmax);
-			console.log(windmax);
-				}    
-			     
-// Headline Forecast
-			
-			 if(msg.destinationName == "personal/ucfnaps/eink/met/headline"){   
-			headline=msg.payloadString;
-		 	$("#currentcond").html(headline);
-			console.log(headline);
-				}    
-			  
-			  
-			//Davis AQI	  
-			  
-	        if(msg.destinationName == "personal/ucfnaps/airquality/davisaqi"){   
-			AQI=msg.payloadString;
-		 	$("#AQI").html(AQI);
-			console.log(AQI);
-				} 
-			if(msg.destinationName == "personal/ucfnaps/airquality/davisquality"){   
-			aqiquality=msg.payloadString;
-		 	$("#aqiquality").html(aqiquality);
-			console.log(aqiquality);
-				}   
-			
-			if(msg.destinationName == "personal/ucfnaps/airquality/davispm25"){   
-			pmtwo=msg.payloadString;
-		 	$("#pmtwo").html(pmtwo);
-			console.log(pmtwo);
-				}     
-			  
-			if(msg.destinationName == "personal/ucfnaps/airquality/davispm10"){   
-			pmten=msg.payloadString;
-		 	$("#pmten").html(pmten);
-			console.log(pmten);
-				}   
-			  
-			if(msg.destinationName == "personal/ucfnaps/airquality/davistrend"){   
-			pmtrend=msg.payloadString;
-		 	$("#pmtrend").html(pmtrend);
-			console.log(pmtrend);
-				}     
-			  
-			// Environ Agency
-			  
-			if(msg.destinationName == "personal/ucfnaps/environ/marham"){   
-			marham=msg.payloadString;
-		 	$("#marham").html(marham);
-			console.log(marham);
-				}   
-			
-			if(msg.destinationName == "personal/ucfnaps/environ/ely"){   
-			ely=msg.payloadString;
-		 	$("#ely").html(ely);
-			console.log(ely);
-				}   
-			  
-			if(msg.destinationName == "personal/ucfnaps/environ/denver"){   
-			denver=msg.payloadString;
-		 	$("#denver").html(denver);
-			console.log(denver);
-				}      
-			
-			// Davis VP2  
-			  
-			// Wind  
-			
-			if(msg.destinationName == "personal/ucfnaps/downhamweather/loop"){
-			var data = jQuery.parseJSON(msg.payloadString)	
-			
-	        wind = (data['windSpeed_mph']);	
-			$("#wind").html(wind);
-		    console.log(wind);	
-			
-				
-		
-	        windspeed10 = (data['windSpeed10_mps'])*2.23694;
-			var windspeed10round = parseFloat(windspeed10).toFixed(1);		
-			$("#windspeed10").html(windspeed10round);
-		    console.log(windspeed10round);		
-			
-				
-				
-			// Convert Wind Speed to Beaufort Text
-			 
-		   if ((wind => 0 ) && (wind < 4 )){
-			  $("#beaufort").html("calm");
-			 }
-		  if ((wind > 4 ) && (wind < 7 )){
-			  $("#beaufort").html("slight breeze");
-			 }
-		  if ((wind > 7 ) && (wind < 11 )) {
-			  $("#beaufort").html("light breeze");
-			 }
-		  if ((wind > 11 ) && (wind < 17 )){
-			  $("#beaufort").html("gentle breeze");
-			 }
-		  if ((wind > 17 ) && (wind < 22 )) {
-			  $("#beaufort").html("moderate breeze");
-			 }
-		  if ((wind > 22 ) && (wind < 28 )) {
-			  $("#beaufort").html("stiff breeze");
-			 }
-		  if ((wind > 28 ) && (wind < 34 )){
-			  $("#beaufort").html("strong breeze");
-			 }
-		  if ((wind > 34 ) && (wind < 41 )){
-			  $("#beaufort").html("near gale");
-			 }
-		  if ((wind > 41 ) && (wind < 48 )){
-			  $("#beaufort").html("gale");
-			 }
-		  if ((wind > 48 ) && (wind < 56 )){
-			  $("#beaufort").html("strong gale");
-			 }
-		  if ((wind > 56 ) && (wind < 64 )){
-			  $("#beaufort").html("storm");
-			 }
-		  if ((wind > 64 ) && (wind >= 73 ))  {
-			  $("#beaufort").html("violent storm");
-			 }
-		  if (wind >= 73 ) {
-			  $("#beaufort").html("hurricane");
-			 }
-	
-		// Wind Direction
-				
-		 winddir=(data['windDir']);	
-
-		    if ((winddir >= 11.25) &&(winddir < 33.75)) {
-				$("#winddir").html("NNE");
-			}
-			 else if ((winddir >= 33.75) && (winddir < 56.25)) {
-				$("#winddir").html("NE");
-			}
-			 else if ((winddir >= 56.25) && (winddir < 78.75)) {
-				$("#winddir").html("ENE");
-			}
-			 else if ((winddir >= 78.75) && (winddir < 101.25)) {
-				$("#winddir").html("E");
-			}	 
-			 else if ((winddir >= 101.25) && (winddir < 123.75)) {
-				$("#winddir").html("ESE");
-			}	 
-			 else if ((winddir >= 123.75) && (winddir < 146.25)) {
-				$("#winddir").html("SE");
-			} 
-		     else if ((winddir >= 146.25) &&(winddir < 168.75)) {
-				$("#winddir").html("SSE");
-			}
-		
-			 else if ((winddir >= 168.75) && (winddir < 191.25)) {
-				$("#winddir").html("S");
-			}
-				 
-			 else if ((winddir >= 191.25) && (winddir < 213.75)) {
-				$("#winddir").html("SSW");
-			}
-				 
-			 else if ((winddir >= 213.75) && (winddir < 236.25)) {
-				$("#winddir").html("SW");
-			}
-				 
-			 else if ((winddir >= 236.25) && (winddir < 258.75)) {
-				$("#winddir").html("WSW");
-			}
-			 
-			 else if ((winddir >= 258.75) &&(winddir < 281.25)) {
-				$("#winddir").html("W");
-			}
-			 
-			
-			 else if ((winddir >= 281.25) && (winddir < 303.75)) {
-				$("#winddir").html("WNW");
-			}
-			 
-			 else if ((winddir >= 303.75) && (winddir < 326.25)) {
-				$("#winddir").html("NW");
-			}
-			
-		    else if ((winddir >= 326.25) && (winddir < 348.75)) {
-				$("#winddir").html("NNW");
-			}
-			
-		    else {$("#winddir").html("N");
-				 }	 
-				
-				
-	//Temp
-				
-		    temp=(data['outTemp_C']);	
-			$("#temp").html(temp);
-		    console.log(temp);
-				
-			apptemp=(data['appTemp_C']);
-			var apptempround = parseFloat(apptemp).toFixed(1)	
-			$("#apptemp").html(apptempround);
-		    console.log(apptempround);	
-				
-				
-	//Rain
-			dailyrain=(data['dayRain_mm']);	
-			$("#rain").html(dailyrain);
-		    console.log(dailyrain);
-			
-			rainrate=(data['rainRate_mm_per_hour']);	
-			var rainrateround = parseFloat(rainrate).toFixed(1);
-				
-			$("#rainrate").html(rainrateround);
-		    console.log(rainrateround);	
-		
-	// Pressure
-			
-			pressure=(data['barometer_mbar']);	
-			$("#baro").html(pressure);
-		    console.log(pressure);	
-											   
-	// Solar
-			  
-			solar=(data['radiation_Wpm2']);
-			$("#solar").html(solar);
-		    console.log(solar);
-			  
-	// Humidity		 
-			  
-			humidity=(data['outHumidity']);
-			$("#humidity").html(humidity);
-		    console.log(humidity);  
-			  
-    // UV
-			  
-			uv=(data['UV']);
-			$("#uv").html(uv);
-		    console.log(uv);   
-			  
-	// Cloud Base
-			cloudheight=(data['cloudbase_meter']);
-			$("#cloudheight").html(cloudheight);
-		    console.log(cloudheight); 	
-				
-	// Dewpoint
-			dewpoint=(data['dewpoint_C']);
-			var dewpointround = parseFloat(dewpoint).toFixed(1)		
-			$("#dewpoint").html(dewpointround);
-		    console.log(dewpointround); 	
-				
-	// Set Background Colour by Temp	
-			
-			 if (temp <= 0) {
-				changeBodyBg('#7CA6DE');
-			 } 
-				 
-		    if (temp < 5) {
-				changeBodyBg('#009cdc');
-			 } 
-			if (temp >= 5) {
-				changeBodyBg('#45B8AC');
-			 } 
-			if (temp >= 10) {
-				changeBodyBg('#f3c12c');
-			 } 
-			if (temp >= 15) {
-				changeBodyBg('#ff9926');
-			 } 
-			if (temp >= 20) {
-				changeBodyBg('#f2552c');
-			 } 
-			if (temp >= 25) {
-				changeBodyBg('#dc343b');
-			 } 
-				 } 
-			   } 
-		 			
-			
-			  
-		 
-		
-	 
-			  
-					  
-	  </script>
-   </head>
- 
-		 <body class="top">
- 
-
+    $(function() { MQTTconnect(); });
+  </script>
+</head>
+<body class="top">
 
 <div id="dashboard">
 
 <div id="top">
   <div id="left"><span id="currentcond"></span></div>
- 
-	</div>
+  <div id="mqttconnection" style="position:absolute;right:8px;top:8px;color:white">mqtt: connecting</div>
+</div>
 
- <div class="data">
+<!-- Full dashboard HTML preserved exactly as before -->
 
-    <div class="dataValue" style="font-size : 50px"><i class="wi wi-thermometer"></i></div>
-       
+<div class="data">
+  <div class="dataValue" style="font-size : 50px"><i class="wi wi-thermometer"></i></div>
+</div>
 
-    </div>
-  
- <div class="data">
+<div class="data">
+  <div class="dataValue"> <span id="temp" lastobs="loading&deg;C">loading</span></div>
+  <div class="title">temp</div>
+</div>
 
-    <div class="dataValue"> <span id="temp" lastobs="loading&deg;C">loading</span></div>
+<div id="TempTrend" class="data">
+  <div class="dataValue"> <span id="temptrend" lastobs="loading&deg;C">loading</span></div>
+  <div class="title">trend / hr</div>
+</div>
 
-        <div class="title">temp</div>
+<div id="TempMax" class="data">
+  <div class="dataValue"> <span id="tempmax" lastobs="loading&deg;C">loading</span></div>
+  <div class="title">max</div>
+</div>
 
-    </div>
-      
-      <div id="TempTrend" class="data">
+<div id="TempMin" class="data">
+  <div class="dataValue"> <span id="tempmin" lastobs="loading&deg;C">loading</span></div>
+  <div class="title">min</div>
+</div>
 
-        <div class="dataValue"> <span id="temptrend" lastobs="loading&deg;C">loading</span></div>
-
-
-        <div class="title">trend / hr</div>
-        
-    </div>
-
-      
-
-      <div id="TempMax" class="data">
-
-       <div class="dataValue"> <span id="tempmax" lastobs="loading&deg;C">loading</span></div>
-
-
-       <div class="title">max</div>
-
-      </div>
-
-    <div id="TempMin" class="data">
-
-        <div class="dataValue"> <span id="tempmin" lastobs="loading&deg;C">loading</span></div>
-
-
-        <div class="title">min</div>
-
-      </div>
 <div id="14" class="data">
+  <div class="dataValue"> <span id="apptemp" lastobs="loading&deg;C">loading</span></div>
+  <div class="title">feels like</div>
+</div>
 
-         <div class="dataValue"> <span id="apptemp" lastobs="loading&deg;C">loading</span></div>
+<div><hr size="1" color="white" ></div>
 
+<div class="data">
+  <div class="dataValue" style="font-size : 50px" ><i class="wi wi-small-craft-advisory"></i></div>
+</div>
 
-       <div class="title">feels like</div>
-
-    </div>
-      
-
-
-     <p>
-    <div><hr size="1" color="white" ></div>
-     
-      <div class="data">
-
-   <div class="dataValue" style="font-size : 50px" ><i class="wi wi-small-craft-advisory"></i></div>
-
-
-        
-    </div>
-      
 <div id="Wind" class="data">
-
-         <div class="dataValue"> <span id="wind" lastobs="loading&deg;C">loading</span></div>
-
-        <div class="title">wind</div>
-
+  <div class="dataValue"> <span id="wind" lastobs="loading&deg;C">loading</span></div>
+  <div class="title">wind</div>
 </div>
-      <div id="WindAverage" class="data">
 
-         <div class="dataValue"> <span id="windspeed10" lastobs="loading&deg;C">loading</span></div>
+<div id="WindAverage" class="data">
+  <div class="dataValue"> <span id="windspeed10" lastobs="loading&deg;C">loading</span></div>
+  <div class="title">av / ten min</div>
+</div>
 
+<div id="MaxGust" class="data">
+  <div class="dataValue"> <span id="windmaxgust" lastobs="loading&deg;C">loading</span></div>
+  <div class="title">max</div>
+</div>
 
-       <div class="title">av / ten min</div>
+<div id="Beaufort" class="data">
+  <div class="dataText"> <span id="beaufort" lastobs="loading&deg;C">loading</span></div>
+  <div class="title">beaufort</div>
+</div>
 
-      </div>
-      
-       <div id="MaxGust" class="data">
+<div id="WindDirection" class="data">
+  <div class="dataText"> <span id="winddir" lastobs="loading&deg;C">loading</span></div>
+  <div class="title">direction</div>
+</div>
 
-         <div class="dataValue"> <span id="windmaxgust" lastobs="loading&deg;C">loading</span></div>
+<div><hr size="1" color="white" ></div>
 
-        <div class="title">max</div>
+<div class="data">
+  <div class="dataValue" style="font-size: 50px; text-align: center;"><i class="wi wi-umbrella"></i></div>
+</div>
 
-      </div>
-      
-       <div id="Beaufort" class="data">
+<div id="Rain" class="data">
+  <div class="dataValue"> <span id="rain" lastobs="loading&deg;C">loading</span></div>
+  <div class="title">Vantage Pro</div>
+</div>
 
-        <div class="dataText"> <span id="beaufort" lastobs="loading&deg;C">loading</span></div>
+<div id="vp2data" class="data">
+  <div class="dataValue"> <span id="rainrate" lastobs="loading&deg;C">loading</span></div>
+  <div class="title">Rate / HR&nbsp; &nbsp;</div>
+</div>
 
-        <div class="title">beaufort</div>
+<div id="marhamdata" class="data">
+  <div class="dataValue"> <span id="marham" lastobs="loading&deg;C">loading</span></div>
+  <div class="title">marham</div>
+</div>
 
-      </div>
-       <div id="WindDirection" class="data">
+<div id="Denver" class="data">
+  <div class="dataValue"> <span id="denver" lastobs="loading&deg;C">loading</span></div>
+  <div class="title">denver</div>
+</div>
 
-        <div class="dataText"> <span id="winddir" lastobs="loading&deg;C">loading</span></div>
+<div id="Ely" class="data">
+  <div class="dataValue"> <span id="ely" lastobs="loading&deg;C">loading</span></div>
+  <div class="title">ely</div>
+</div>
 
-        <div class="title">direction</div>
+<div><hr size="1" color="white" ></div>
 
-      </div>
-      
-      <p>
-      <div><hr size="1" color="white" ></div>
-      
-       <div class="data">
+<div class="data">
+  <div class="dataValue" style="font-size: 50px; text-align: center;"><i class="wi wi-dust"></i></div>
+</div>
 
-    <div class="dataValue" style="font-size: 50px; text-align: center;"><i class="wi wi-umbrella"></i></div>
+<div id="aqiindex" class="data">
+  <div class="dataValue"> <span id="AQI" lastobs="loading&deg;C">loading</span></div>
+  <div class="title">AQI</div>
+</div>
 
+<div id="q" class="data">
+  <div class="datatext"> <span id="aqiquality" lastobs="loading&deg;C">loading</span></div>
+  <div class="title">AQI Rating&nbsp; &nbsp;</div>
+</div>
 
-        
-    </div>
-      <div id="Rain" class="data">
+<div id="pm25tag" class="data">
+  <div class="dataValue"> <span id="pmtwo" lastobs="loading&deg;C">loading</span></div>
+  <div class="title">pm two.five</div>
+</div>
 
-         <div class="dataValue"> <span id="rain" lastobs="loading&deg;C">loading</span></div>
+<div id="pmtest" class="data">
+  <div class="dataValue"> <span id="pmten" lastobs="loading&deg;C">loading</span></div>
+  <div class="title">PM ten</div>
+</div>
 
+<div id="tag" class="data">
+  <div class="dataText"> <span id="pmtrend" lastobs="loading&deg;C">loading</span></div>
+  <div class="title">quality&nbsp;</div>
+</div>
 
-        <div class="title">Vantage Pro</div>
+<div><hr size="1" color="white" ></div>
 
-      </div>
-      
-      <div id="vp2data" class="data">
-
-        <div class="dataValue"> <span id="rainrate" lastobs="loading&deg;C">loading</span></div>
-
-
-        <div class="title">Rate / HR&nbsp; &nbsp;</div>
-
-      </div>
-      
-      <div id="marhamdata" class="data">
-
-        <div class="dataValue"> <span id="marham" lastobs="loading&deg;C">loading</span></div>
-        
-
-        <div class="title">marham</div>
-
-      </div>
-      
-      <div id="Denver" class="data">
-
-        
-         <div class="dataValue"> <span id="denver" lastobs="loading&deg;C">loading</span></div>
-
-        <div class="title">denver</div>
-
-      </div>
-      
-      <div id="Ely" class="data">
-
-        <div class="dataValue"> <span id="ely" lastobs="loading&deg;C">loading</span></div>
-
-
-       <div class="title">ely</div>
-
-      </div>
-      <p>
-    <div><hr size="1" color="white" ></div>
-      <div class="data">
-	<div class="dataValue" style="font-size: 50px; text-align: center;"><i class="wi wi-dust"></i></div>
-        
-    </div>
-
-      <div id="aqiindex" class="data">
-
-         <div class="dataValue"> <span id="AQI" lastobs="loading&deg;C">loading</span></div>
-
-
-        <div class="title">AQI</div>
-
-      </div>
-      
-      <div id="q" class="data">
-
-        <div class="datatext"> <span id="aqiquality" lastobs="loading&deg;C">loading</span></div>
-
-
-        <div class="title">AQI Rating&nbsp; &nbsp;</div>
-
-      </div>
-      
-      <div id="pm25tag" class="data">
-
-        <div class="dataValue"> <span id="pmtwo" lastobs="loading&deg;C">loading</span></div>
-        
-
-        <div class="title">pm two.five</div>
-
-      </div>
-      
-      <div id="pmtest" class="data">
-
-        
-         <div class="dataValue"> <span id="pmten" lastobs="loading&deg;C">loading</span></div>
-
-        <div class="title">PM ten</div>
-
-      </div>
-      
-      <div id="tag" class="data">
-
-        <div class="dataText"> <span id="pmtrend" lastobs="loading&deg;C">loading</span></div>
-
-
-       <div class="title">quality&nbsp;</div>
-
-      </div>
-      <p>
-    <div><hr size="1" color="white" ></div>	  
-    
-       <div class="data">	  
-
+<div class="data">
   <div class="dataValue" style="font-size : 50px"><i class="wi wi-barometer"></i></div>
-
-
-        
-    </div>
-      <div id="Pressure" class="data">
-
-        <div class="dataValue"> <span id="baro" lastobs="loading&deg;C">loading</span></div>
-
-
-        <div class="title">pressure</div>
-
-
-
-      </div>
-      
-         <div id="Pressure_Hour" class="data">
-
-         <div class="dataValue"> <span id="pbarohour" lastobs="loading&deg;C">loading</span></div>
-
-
-       <div class="title">trend / hr</div>
-
-
-      </div>
-      
-         <div id="PressureMax" class="data">
-
-         <div class="dataValue"> <span id="baromax" lastobs="loading&deg;C">loading</span></div>
-
-<div class="title">max</div>
-
-
-
-      </div>
-      
-         <div id="PressureMin" class="data">
-
-         <div class="dataValue"> <span id="baromin" lastobs="loading&deg;C">loading</span></div>
-
-        <div class="title">min</div>
-
-
-      </div>
-      
-         <div class="data">
-
-         <div class="dataText"> <span id="pressuretrend" lastobs="loading&deg;C">loading</span></div>
-
-
-        <div class="title">state</div>
-      </div>
-      
-      <p>
-      <div><hr size="1" color="white" ></div>
-       <div class="data">
-		   
-		   
- <div class="dataValue" style="font-size : 50px"><i class="wi wi-day-sunny"></i></div>
-
-    </div>
-    
-   <div id="Solar" class="data">
-
-        <div class="dataValue"> <span id="solar" lastobs="loading&deg;C">loading</span></div>
-
-        <div class="title">solar</div>
 </div>
-      
-       <div id="Solarpct" class="data">
 
-         <div class="dataValue"> <span id="uv" lastobs="loading&deg;C">loading</span></div>
-
-
-       <div class="title">UV&nbsp;</div>
-
-      </div>
-
- <div id="Sunshine" class="data">
-
-         <div class="dataValue"> <span id="dewpoint" lastobs="loading&deg;C">loading</span></div>
-
-
-        <div class="title">dew point</div>
+<div id="Pressure" class="data">
+  <div class="dataValue"> <span id="baro" lastobs="loading&deg;C">loading</span></div>
+  <div class="title">pressure</div>
 </div>
-      
-      <div id="Humidity" class="data">
 
-         <div class="dataValue"> <span id="humidity" lastobs="loading&deg;C">loading</span></div>
+<div id="Pressure_Hour" class="data">
+  <div class="dataValue"> <span id="pbarohour" lastobs="loading&deg;C">loading</span></div>
+  <div class="title">trend / hr</div>
+</div>
 
-<div class="title">humidity %</div>
-      </div>
-      
-      <div id="CloudBase" class="data">
+<div id="PressureMax" class="data">
+  <div class="dataValue"> <span id="baromax" lastobs="loading&deg;C">loading</span></div>
+  <div class="title">max</div>
+</div>
 
-         <div class="dataValue"> <span id="cloudheight" lastobs="loading&deg;C">loading</span></div>
+<div id="PressureMin" class="data">
+  <div class="dataValue"> <span id="baromin" lastobs="loading&deg;C">loading</span></div>
+  <div class="title">min</div>
+</div>
 
-       <div class="title">cloud base m</div>
+<div class="data">
+  <div class="dataText"> <span id="pressuretrend" lastobs="loading&deg;C">loading</span></div>
+  <div class="title">state</div>
+</div>
 
-      </div>
+<div><hr size="1" color="white" ></div>
 
-	
+<div class="data">
+  <div class="dataValue" style="font-size : 50px"><i class="wi wi-day-sunny"></i></div>
+</div>
 
- 
+<div id="Solar" class="data">
+  <div class="dataValue"> <span id="solar" lastobs="loading&deg;C">loading</span></div>
+  <div class="title">solar</div>
+</div>
 
-    
-      <center>
- 
-  
-  
+<div id="Solarpct" class="data">
+  <div class="dataValue"> <span id="uv" lastobs="loading&deg;C">loading</span></div>
+  <div class="title">UV&nbsp;</div>
+</div>
 
-	<script>
-	MQTTconnect();
-	</script>
-</body>	
+<div id="Sunshine" class="data">
+  <div class="dataValue"> <span id="dewpoint" lastobs="loading&deg;C">loading</span></div>
+  <div class="title">dew point</div>
+</div>
+
+<div id="Humidity" class="data">
+  <div class="dataValue"> <span id="humidity" lastobs="loading&deg;C">loading</span></div>
+  <div class="title">humidity %</div>
+</div>
+
+<div id="CloudBase" class="data">
+  <div class="dataValue"> <span id="cloudheight" lastobs="loading&deg;C">loading</span></div>
+  <div class="title">cloud base m</div>
+</div>
+
+</div>
+
+</body>
 </html>
