@@ -1,15 +1,10 @@
 @charset "UTF-8";
 body {
-
     background-color: cornflowerblue;
-	text-align: center;
-	margin-top: 30px;
+    text-align: center;
+    padding-top: 30px; /* <-- This is the change */
     height: 100%;
-	
-	
 }
-
-
 #icon {
  color: white;
 	position: absolute;
