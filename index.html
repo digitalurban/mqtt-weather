@@ -29,8 +29,9 @@
 		var reconnectTimeout = 2000;
 		var host="mqtt.cetools.org"; //change this
 		var port=8080;
-		var useSSL =true;
-		var clientID = "clientID" + parseInt(Math.random() * 100); 
+
+	    client = new Paho.MQTT.Client("www.finchamweather.co.uk", 443, "myClientId");
+        client.useSSL = true;
 		
 		function onFailure(message) {
 			console.log("Connection Attempt to Host "+host+"Failed");
