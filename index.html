@@ -30,7 +30,7 @@
 		var host="mqtt.cetools.org"; //change this
 		var port=8080;
 
-	    client = new Paho.MQTT.Client("www.finchamweather.co.uk", 443, "myClientId");
+	    client = new Paho.MQTT.Client("www.finchamweather.co.uk", 8080, "myClientId");
         client.useSSL = true;
 		
 		function onFailure(message) {
