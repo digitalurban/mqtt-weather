@@ -4,7 +4,11 @@ This repository hosts a simple, static web dashboard for displaying real-time we
 
 It works by using the [Paho MQTT JavaScript client](https://github.com/eclipse/paho.mqtt-javascript) to connect directly to an MQTT broker over secure WebSockets (`wss://`) and subscribe to data topics.
 
-### ➡️ **Live Demo: [https://digitalurban.github.io/mqtt-weather/](https://digitalurban.github.io/mqtt-weather/)**
+### ➡️ **Live Demo Main: [https://digitalurban.github.io/mqtt-weather/](https://digitalurban.github.io/mqtt-weather/)**
+
+### ➡️ **Live Demo Mixed: [https://digitalurban.github.io/mqtt-weather/mixed_dashboard.html](https://digitalurban.github.io/mqtt-weather/mixed_dashboard.html)**
+
+### ➡️ **Live Demo eink: [https://digitalurban.github.io/mqtt-weather/eink.html](https://digitalurban.github.io/mqtt-weather/eink.html)**
 
 ---
 
