@@ -2,21 +2,31 @@
 
 This repository hosts a simple, static web dashboard for displaying real-time weather and environmental data. It is built with plain HTML, CSS, and JavaScript, and it is hosted live on GitHub Pages.
 
-It works by using the [Paho MQTT JavaScript client](https://github.com/eclipse/paho.mqtt.javascript) to connect directly to an MQTT broker over secure WebSockets (`wss://`) and subscribe to data topics.
+It works by using the [Paho MQTT JavaScript client](https://github.com/eclipse/paho.mqtt-javascript) to connect directly to an MQTT broker over secure WebSockets (`wss://`) and subscribe to data topics.
 
 ### ➡️ **Live Demo: [https://digitalurban.github.io/mqtt-weather/](https://digitalurban.github.io/mqtt-weather/)**
 
 ---
 
-## 🖥️ Main Dashboard (`index.html`)
+## Dashboards
 
-The main dashboard is a grid-based layout designed for a full browser. It displays a wide range of data, including temperature, wind, rain, air quality, and more, all updated in real-time.
+This repository contains three different dashboard examples:
+
+### 1. Main Dashboard (`index.html`)
+
+The main dashboard is a grid-based layout designed for a full browser. It displays a wide range of data, including temperature, wind, rain, air quality, and more, all updated in real-time via MQTT.
 
 ![Main Dashboard Screenshot](https://github.com/digitalurban/mqtt-weather/blob/main/Screenshot%202025-10-31%20at%2010.06.16.png)
 
-## ⚫ E-Ink Version (`eink.html`)
+### 2. Mixed Dashboard (`mixed_dashboard.html`)
 
-A second, simplified version is available, which is designed specifically for e-ink or other low-power, high-contrast displays. It removes most of the styling to focus on clear data presentation.
+This dashboard combines the real-time MQTT data (like temperature and wind) from the main page with a multi-day forecast from the Open-Meteo API and an embedded live rain radar.
+
+![Mixed Dashboard Screenshot](https://raw.githubusercontent.com/digitalurban/mqtt-weather/main/Screenshot%202025-10-31%20at%2010.17.39.png)
+
+### 3. E-Ink Version (`eink.html`)
+
+A simplified, high-contrast version designed specifically for e-ink or other low-power displays. It removes most of the styling to focus on clear data presentation.
 
 ![E-Ink Dashboard Screenshot](https://github.com/digitalurban/mqtt-weather/blob/main/Screenshot%202025-10-31%20at%2010.07.21.png)
 
@@ -24,15 +34,25 @@ A second, simplified version is available, which is designed specifically for e-
 
 ## ⚙️ How It Works
 
-This is a purely **client-side** application. There is no backend server component in this repository.
+This is a purely **client-side** application. There is no backend server component in this repository. The page uses three different techniques to get its data:
 
-1.  A user loads the static HTML page from GitHub Pages.
-2.  The `mqtt.js` script (which uses the Paho library) creates a secure WebSocket connection to an MQTT broker.
-3.  Once connected, the script subscribes to all the necessary data topics (e.g., `/weather/temp`, `/airquality/aqi`, etc.).
-4.  As new messages are published to those topics by the weather station, the `onMessageArrived` function in the JavaScript is triggered.
-5.  The script parses the message and uses `document.getElementById()` to update the content of the correct HTML element on the page.
+### 1. Real-Time Data (MQTT)
 
-This setup is extremely lightweight and fast, as it only requires a static file host and an accessible MQTT broker.
+* **How:** The `mqtt.js` script (using the Paho library) creates a secure WebSocket (`wss://`) connection to your MQTT broker.
+* **What:** It subscribes to topics (e.g., `/weather/temp`). When new messages arrive, the script updates the HTML to display the new numbers.
+* **Used for:** All the real-time data like current temperature, wind, pressure, etc.
+
+### 2. Weather Forecast (Open-Meteo API)
+
+* **How:** On page load, a JavaScript function makes a `fetch` request to the **Open-Meteo API** (e.g., `api.open-meteo.com/...`).
+* **What:** The API returns a large **JSON** file containing the forecast for the coming days (max temps, rain probability, etc.). The script then parses this JSON and dynamically updates the HTML of the forecast section.
+* **Used for:** The multi-day weather forecast on the "Mixed Dashboard".
+
+### 3. Rain Radar (Rainviewer Widget)
+
+* **How:** The HTML page includes a `<script>` tag from `rainviewer.com`.
+* **What:** This external JavaScript runs, finds its placeholder `<div>` on the page, and dynamically builds the interactive rain radar map inside it.
+* **Used for:** The live radar map on the "Mixed Dashboard".
 
 ## 🚀 How to Use or Adapt
 
@@ -45,4 +65,4 @@ You can easily fork this repository to create your own dashboard:
     * Ensure your broker is configured to accept secure WebSockets (`wss://`), as this is required by GitHub Pages.
     * Update your `clientId` and any `username`/`password` details if your broker requires authentication.
 4.  **Edit the Topics:** In the `onConnect` function, change the `client.subscribe(...)` topics to match the topics your own devices are publishing to.
-5.  **Edit the HTML:** Modify `index.html` and `eink.html` to add, remove, or change the display boxes to match your data.
+5.  **Edit the API/Widgets:** In `mixed_dashboard.html`, you can change the latitude/longitude for the Open-Meteo API call and the Rainviewer widget to match your location.
