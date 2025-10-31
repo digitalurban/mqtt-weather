@@ -1,0 +1,696 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weather Live - Modern Environmental Dashboard</title>
+
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/weather-icons/2.0.12/css/weather-icons.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --primary-color: #0ea5e9;
+            --secondary-color: #6366f1;
+            --accent-color: #f59e0b;
+            --success-color: #10b981;
+            --warning-color: #f59e0b;
+            --danger-color: #ef4444;
+            --text-primary: #ffffff;
+            --text-secondary: rgba(255, 255, 255, 0.8);
+            --text-muted: rgba(255, 255, 255, 0.6);
+            --glass-bg: rgba(255, 255, 255, 0.08);
+            --glass-border: rgba(255, 255, 255, 0.04);
+            --glass-hover: rgba(255, 255, 255, 0.12);
+            --shadow-soft: 0 8px 32px rgba(0, 0, 0, 0.12);
+            --shadow-medium: 0 16px 64px rgba(0, 0, 0, 0.16);
+            --section-spacing: 32px;
+            --overview-panel-bg: var(--glass-bg);
+            --overview-panel-text: var(--text-primary);
+            --overview-panel-subtext: var(--text-secondary);
+            --overview-panel-icon-color: var(--text-secondary);
+            --overview-panel-border: var(--glass-border);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Inter', sans-serif; color: var(--text-primary);
+            min-height: 100vh; overflow-x: hidden;
+            background: #45B8AC; 
+            position: relative;
+            transition: background 0.5s ease; 
+        }
+        body::before {
+            content: ''; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: radial-gradient(circle at 20% 20%, rgba(255,255,255,0.05) 0%, transparent 50%),
+                        radial-gradient(circle at 80% 80%, rgba(255,255,255,0.03) 0%, transparent 50%),
+                        radial-gradient(circle at 40% 60%, rgba(255,255,255,0.02) 0%, transparent 50%);
+            animation: float 30s ease-in-out infinite; pointer-events: none; z-index: 0;
+        }
+        @keyframes float {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            33% { transform: translateY(-20px) rotate(5deg); }
+            66% { transform: translateY(10px) rotate(-3deg); }
+        }
+        .container { max-width: 1200px; margin: 0 auto; padding: 24px; position: relative; z-index: 1; }
+        
+        .header {
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+        }
+
+        .page-current-condition { 
+            font-size: 1.1rem; 
+            font-weight: 500;
+            color: var(--text-secondary); 
+            text-align: left;
+            background: none; 
+            border: none;
+            padding: 0; 
+            border-radius: 0; 
+            backdrop-filter: none; 
+            margin-bottom: 0; 
+            margin-right: 16px; 
+            flex-grow: 1; 
+            min-width: 0; 
+        }
+
+        .connection-status {
+            display: inline-flex; align-items: center; gap: 8px; padding: 6px 16px;
+            background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: 24px;
+            backdrop-filter: blur(16px); font-size: 0.875rem; font-weight: 500; transition: all 0.3s ease;
+            flex-shrink: 0; 
+        }
+        .connection-status.connected { background: rgba(16, 185, 129, 0.15); border-color: rgba(16, 185, 129, 0.3); color: #34d399; }
+        .connection-status.disconnected { background: rgba(239, 68, 68, 0.15); border-color: rgba(239, 68, 68, 0.3); color: #f87171; cursor: pointer; }
+        .status-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; animation: pulse 2s ease-in-out infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.6; transform: scale(0.8); } }
+        
+        .theme-toggle {
+            position: fixed;
+            top: 24px;
+            right: 24px;
+            width: 48px;
+            height: 48px;
+            background-color: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            z-index: 1000;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+            box-shadow: var(--shadow-soft);
+        }
+        .theme-toggle:hover {
+            background-color: var(--glass-hover);
+            transform: scale(1.05);
+        }
+        .theme-toggle i {
+            font-size: 1.2rem;
+            color: var(--text-secondary); 
+            transition: color 0.3s ease;
+        }
+
+        .dashboard-main-content {
+            display: flex; flex-wrap: wrap; 
+            gap: 24px; margin-bottom: var(--section-spacing);
+        }
+        .vertical-data-panel-container { flex: 3; min-width: 360px; }
+        .radar-main-container {
+            flex: 2; 
+            min-width: 300px; 
+            background-color: var(--glass-bg);
+            border-radius: 16px;
+            padding: 10px; 
+            box-shadow: var(--shadow-medium);
+            border: 1px solid var(--glass-border);
+            display: flex; 
+            flex-direction: column; 
+            overflow: hidden; 
+        }
+        #main-windy-radar-iframe {
+            width: 100%;
+            height: 100%; 
+            border: none;
+            border-radius: 8px; 
+        }
+
+        .vertical-data-panel {
+            display: flex; flex-direction: column; gap: 1px; 
+            background-color: var(--glass-border); border-radius: 16px;
+            overflow: hidden; box-shadow: var(--shadow-medium);
+        }
+        .vdp-row {
+            display: flex; align-items: center; background-color: var(--glass-bg); 
+            padding: 12px 15px; gap: 15px; 
+        }
+        .vdp-icon-container {
+            font-size: 1.8rem; color: var(--text-secondary);
+            width: 35px; text-align: center; flex-shrink: 0; 
+        }
+        .vdp-icon-container i { line-height: 1; }
+        
+        .vdp-data-container {
+            display: grid;
+            grid-template-columns: repeat(5, minmax(95px, 1fr)); 
+            gap: 8px;
+            align-items: stretch; 
+            flex-grow: 1; 
+        }
+        .vdp-data-point {
+            display: flex; 
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 5px 0; 
+        }
+        .vdp-value {
+            font-size: 1.1rem; font-weight: 600;
+            color: var(--text-primary); line-height: 1.2;
+        }
+        .vdp-value .unit { 
+            font-size: 0.7em; font-weight: 400;
+            color: var(--text-muted); margin-left: 2px;
+        }
+        .vdp-label {
+            font-size: 0.6rem; color: var(--text-muted);
+            text-transform: uppercase; letter-spacing: 0.05em;
+            margin-top: 3px; line-height: 1.1;
+            width: 100%; 
+        }
+        
+        .forecast-section { margin-top: var(--section-spacing); }
+        .forecast-header { text-align: center; margin-bottom: 24px; }
+        .forecast-title { font-size: 1.5rem; font-weight: 700; color: var(--text-primary); margin-bottom: 8px; }
+        .forecast-subtitle { font-size: 0.875rem; color: var(--text-muted); }
+        .forecast-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(140px,1fr)); gap: 12px; }
+        .forecast-card { background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: 16px; padding: 16px; backdrop-filter: blur(20px); text-align: center; transition: all 0.3s ease; box-shadow: var(--shadow-soft); }
+        .forecast-card:hover { transform: translateY(-1px); background: var(--glass-hover); }
+        .forecast-day { font-size: 0.75rem; font-weight: 600; color: var(--text-muted); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.05em; }
+        .forecast-icon { font-size: 2rem; margin: 8px 0; opacity: 0.9; } 
+        .forecast-icon i { display: inline-block; } 
+        .forecast-temps { display: flex; justify-content: space-around; align-items: center; margin-top: 8px; }
+        .forecast-high { font-size: 1.125rem; font-weight: 700; color: var(--text-primary); }
+        .forecast-low { font-size: 1rem; font-weight: 500; color: var(--text-muted); }
+        .forecast-condition { font-size: 0.75rem; color: var(--text-secondary); margin-top: 4px; line-height: 1.2; }
+
+        /* Media Queries */
+        @media (max-width: 900px) { 
+            .dashboard-main-content { flex-direction: column; }
+            .vertical-data-panel-container, .radar-main-container { flex-basis: auto; width: 100%; }
+            #main-windy-radar-iframe { height: 350px; }
+        }
+
+        @media (max-width: 768px) { /* Tablet Portrait / Large Phone Landscape */
+            .container { padding: 16px; }
+
+            .theme-toggle {
+                top: 16px;
+                right: 16px;
+                width: 44px;
+                height: 44px;
+            }
+            .theme-toggle i {
+                font-size: 1rem;
+            }
+
+            .vdp-data-container {
+                display: flex;
+                flex-wrap: wrap;
+                justify-content: space-evenly;
+                align-items: stretch; 
+                gap: 10px;
+                grid-template-columns: unset; 
+            }
+            .vdp-data-point {
+                flex-grow: 1; 
+                flex-shrink: 1;
+                flex-basis: calc((100% - 2 * 10px) / 3); 
+                min-width: 80px; 
+            }
+            .vdp-value { font-size: 1rem; }
+            .vdp-label { font-size: 0.6rem; }
+
+            .forecast-grid { grid-template-columns: repeat(auto-fit,minmax(120px,1fr)); } 
+        }
+
+        @media (max-width: 600px) { /* Phone */
+            .header {
+                flex-direction: column;
+                align-items: center;
+                gap: 10px;
+            }
+            .page-current-condition {
+                text-align: center;
+                margin-right: 0;
+                margin-bottom: 0; 
+                max-width: 95%;
+            }
+
+            .vdp-row { 
+                flex-direction: column;
+                align-items: center;
+                gap: 10px;
+                padding: 12px;
+            }
+            .vdp-icon-container {
+                width: auto;
+                font-size: 1.8rem;
+                margin-bottom: 5px;
+            }
+            .vdp-data-container { 
+                gap: 8px 10px; 
+                justify-content: center;
+            }
+            .vdp-data-point { 
+                flex-grow: 1;
+                flex-shrink: 1;
+                flex-basis: calc(50% - 10px); 
+                min-width: 70px; 
+            }
+        }
+
+        @media (max-width: 480px) { /* Small Phone */
+             .vdp-data-point {
+                min-width: 60px; 
+             }
+            .vdp-value { font-size: 0.9rem; } 
+            .vdp-label { font-size: 0.55rem; }
+            #main-windy-radar-iframe { height: 300px; }
+            .forecast-grid { grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 8px; }
+            .forecast-card { padding: 12px; } 
+            .forecast-icon { font-size: 1.5rem; }
+            .forecast-high { font-size: 1rem; } 
+            .forecast-low { font-size: 0.875rem; }
+        }
+
+        body.light-mode { 
+            --text-primary: #1e293b; 
+            --text-secondary: #475569; 
+            --text-muted: #64748b; 
+            --glass-bg: rgba(255,255,255,0.04); 
+            --glass-border: rgba(0,0,0,0.1); 
+            --glass-hover: rgba(255,255,255,0.8);
+            --overview-panel-bg: var(--glass-bg); 
+            --overview-panel-text: var(--text-primary);
+            --overview-panel-subtext: var(--text-secondary);
+            --overview-panel-icon-color: var(--text-secondary);
+            --overview-panel-border: var(--glass-border);
+        }
+        body.light-mode::before { 
+            background: radial-gradient(circle at 20% 20%, rgba(0,0,0,0.02) 0%, transparent 50%), 
+                        radial-gradient(circle at 80% 80%, rgba(0,0,0,0.01) 0%, transparent 50%); 
+        }
+    
+        body.light-mode .theme-toggle i {
+            color: var(--text-primary); 
+        }
+
+    </style>
+</head>
+<body class="temp-mild"> 
+    <div class="theme-toggle" onclick="toggleTheme()">
+        <i class="fas fa-moon" id="theme-icon"></i>
+    </div>
+    <div class="container">
+        <div class="header">
+            <div class="page-current-condition" id="currentcond">Loading conditions...</div>
+            <div class="connection-status disconnected" id="mqttconnection">
+                <span class="status-dot"></span><span>Connecting...</span>
+            </div>
+        </div>
+
+        <div class="dashboard-main-content">
+            <div class="vertical-data-panel-container">
+                <div class="vertical-data-panel">
+                    <div class="vdp-row">
+                        <div class="vdp-icon-container"><i class="wi wi-thermometer"></i></div>
+                        <div class="vdp-data-container">
+                            <div class="vdp-data-point">
+                                <span class="vdp-value" id="vd_temp">--</span><span class="vdp-label">Temp °C</span>
+                            </div>
+                            <div class="vdp-data-point">
+                                <span class="vdp-value" id="vd_temptrend_val">--</span><span class="vdp-label">Trend/hr</span>
+                            </div>
+                            <div class="vdp-data-point">
+                                <span class="vdp-value" id="vd_tempmax">--</span><span class="vdp-label">Max °C</span>
+                            </div>
+                            <div class="vdp-data-point">
+                                <span class="vdp-value" id="vd_tempmin">--</span><span class="vdp-label">Min °C</span>
+                            </div>
+                            <div class="vdp-data-point">
+                                <span class="vdp-value" id="vd_apptemp_vert">--</span><span class="vdp-label">Feels °C</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="vdp-row">
+                        <div class="vdp-icon-container"><i class="wi wi-strong-wind"></i></div>
+                        <div class="vdp-data-container">
+                            <div class="vdp-data-point">
+                                <span class="vdp-value" id="vd_wind_speed">--</span>
+                                <span class="vdp-label">MPH</span>
+                            </div>
+                            <div class="vdp-data-point">
+                                <span class="vdp-value" id="vd_windspeed10">--</span><span class="vdp-label">Avg mph</span>
+                            </div>
+                            <div class="vdp-data-point">
+                                <span class="vdp-value" id="vd_windmaxgust">--</span><span class="vdp-label">Gust mph</span>
+                            </div>
+                            <div class="vdp-data-point">
+                                <span class="vdp-value" id="vd_beaufort">--</span><span class="vdp-label">Beaufort</span>
+                            </div>
+                            <div class="vdp-data-point">
+                                <span class="vdp-value" id="vd_winddir">--</span><span class="vdp-label">Direction</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="vdp-row">
+                        <div class="vdp-icon-container"><i class="wi wi-umbrella"></i></div>
+                        <div class="vdp-data-container">
+                            <div class="vdp-data-point">
+                                <span class="vdp-value" id="vd_rain_daily">--</span><span class="vdp-label">Daily mm</span>
+                            </div>
+                            <div class="vdp-data-point">
+                                <span class="vdp-value" id="vd_rainrate">--</span><span class="vdp-label">Rate mm/hr</span>
+                            </div>
+                            <div class="vdp-data-point">
+                                <span class="vdp-value" id="vd_marham">--</span><span class="vdp-label">Marham m</span>
+                            </div>
+                            <div class="vdp-data-point">
+                                <span class="vdp-value" id="vd_denver">--</span><span class="vdp-label">Denver m</span>
+                            </div>
+                            <div class="vdp-data-point">
+                                <span class="vdp-value" id="vd_ely">--</span><span class="vdp-label">Ely m</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="vdp-row">
+                        <div class="vdp-icon-container"><i class="fas fa-smog"></i></div>
+                        <div class="vdp-data-container">
+                            <div class="vdp-data-point">
+                                <span class="vdp-value" id="vd_aqi">--</span><span class="vdp-label">AQI</span>
+                            </div>
+                            <div class="vdp-data-point">
+                                <span class="vdp-value" id="vd_aqiquality">--</span><span class="vdp-label">Rating</span>
+                            </div>
+                            <div class="vdp-data-point">
+                                <span class="vdp-value" id="vd_pmtwo">--</span><span class="vdp-label">PM2.5 µg/m³</span>
+                            </div>
+                            <div class="vdp-data-point">
+                                <span class="vdp-value" id="vd_pmten">--</span><span class="vdp-label">PM10 µg/m³</span>
+                            </div>
+                            <div class="vdp-data-point">
+                                <span class="vdp-value" id="vd_pmtrend_aqi">--</span><span class="vdp-label">Trend</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="vdp-row">
+                        <div class="vdp-icon-container"><i class="wi wi-barometer"></i></div>
+                        <div class="vdp-data-container">
+                            <div class="vdp-data-point">
+                                <span class="vdp-value" id="vd_baro">--</span><span class="vdp-label">Pressure mbar</span>
+                            </div>
+                            <div class="vdp-data-point">
+                                <span class="vdp-value" id="vd_pbarohour">--</span><span class="vdp-label">Trend/hr</span>
+                            </div>
+                            <div class="vdp-data-point">
+                                <span class="vdp-value" id="vd_baromax">--</span><span class="vdp-label">Max mbar</span>
+                            </div>
+                            <div class="vdp-data-point">
+                                <span class="vdp-value" id="vd_baromin">--</span><span class="vdp-label">Min mbar</span>
+                            </div>
+                            <div class="vdp-data-point">
+                                <span class="vdp-value" id="vd_pressurestate">--</span><span class="vdp-label">State</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="vdp-row">
+                        <div class="vdp-icon-container"><i class="wi wi-day-sunny"></i></div>
+                        <div class="vdp-data-container">
+                            <div class="vdp-data-point">
+                                <span class="vdp-value" id="vd_solar">--</span><span class="vdp-label">Solar W/m²</span>
+                            </div>
+                            <div class="vdp-data-point">
+                                <span class="vdp-value" id="vd_uv">--</span><span class="vdp-label">UV Index</span>
+                            </div>
+                            <div class="vdp-data-point">
+                                <span class="vdp-value" id="vd_dewpoint">--</span><span class="vdp-label">Dew °C</span>
+                            </div>
+                            <div class="vdp-data-point">
+                                <span class="vdp-value" id="vd_humidity">--</span><span class="vdp-label">Humidity %</span>
+                            </div>
+                            <div class="vdp-data-point">
+                                <span class="vdp-value" id="vd_cloudheight">--</span><span class="vdp-label">Cloud Base m</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="radar-main-container">
+                <iframe
+                    id="main-windy-radar-iframe"
+                    src="https://embed.windy.com/embed.html?type=map&location=coordinates&metricRain=default&metricTemp=default&metricWind=default&zoom=7&overlay=radar&product=ecmwf&level=surface&lat=52.603&lon=0.362&message=false&marker=false&calendar=now&pressure=false&type=map&location=coordinates&detail=false&metricAccu=default&detailLat=52.603&detailLon=0.362&radarRange=-1"
+                    allowfullscreen>
+                </iframe>
+            </div>
+        </div>
+        
+        <div class="forecast-section"> 
+            <div class="forecast-header"><div class="forecast-title">5-Day Forecast</div><div class="forecast-subtitle">Powered by Open-Meteo</div></div> 
+            <div class="forecast-grid" id="forecast-grid"> 
+                <div class="forecast-card"><div class="forecast-day">Loading...</div><div class="forecast-icon"><i class="fas fa-spinner fa-spin"></i></div><div class="forecast-temps"><span class="forecast-high">--°</span><span class="forecast-low">--°</span></div><div class="forecast-condition">Loading forecast...</div></div> 
+            </div> 
+        </div>
+    </div> 
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js"></script>
+    <script>
+        var mqtt;
+        var reconnectTimeout = 2000;
+        var reconnectAttempts = 0;
+        var maxReconnectAttempts = 10;
+        var clientID = "weatherClient_" + parseInt(Math.random() * 10000);
+
+        function getConnectionOptions() { var host = "mqtt.cetools.org"; var port = 8081; var useSSL = true; return { host: host, port: port, options: { timeout: 15, keepAliveInterval: 30, cleanSession: true, useSSL: useSSL, onSuccess: onConnect, onFailure: onFailure, mqttVersion: 4, invocationContext: { host: host, port: port, clientId: clientID } } }; }
+        function onFailure(message) { console.error("MQTT Connection failed:", message.errorCode, message.errorMessage); reconnectAttempts++; if (reconnectAttempts < maxReconnectAttempts) { updateConnectionStatus(false, "Reconnecting... (" + reconnectAttempts + "/" + maxReconnectAttempts + ")"); setTimeout(MQTTconnect, reconnectTimeout); } else { updateConnectionStatus(false, "MQTT failed. Click to retry or use demo mode."); const statusEl = document.getElementById('mqttconnection'); statusEl.style.cursor = 'pointer'; statusEl.addEventListener('click', function(e) { e.stopPropagation(); if (e.ctrlKey || e.metaKey) { enableTestMode(); } else { reconnectAttempts = 0; MQTTconnect(); } }, { once: true }); } }
+        function onConnect() { console.log("Successfully connected to MQTT broker"); reconnectAttempts = 0; updateConnectionStatus(true); try { mqtt.subscribe("personal/ucfnaps/#", { onSuccess: function() { console.log("Successfully subscribed to personal/ucfnaps/#"); }, onFailure: function(msg) { console.error("Subscription failed:", msg.errorMessage); } }); } catch (e) { console.error("Error subscribing:", e); } }
+        function updateConnectionStatus(connected, message = null) { const statusEl = document.getElementById('mqttconnection'); if (connected) { statusEl.className = 'connection-status connected'; const statusText = message || 'Connected'; statusEl.innerHTML = `<span class="status-dot"></span><span>${message === 'Demo Mode' ? '🎮 Demo Mode' : statusText}</span>`; } else { statusEl.className = 'connection-status disconnected'; statusEl.innerHTML = `<span class="status-dot"></span><span>${message || 'Disconnected'}</span>`; } }
+        function MQTTconnect() { const config = getConnectionOptions(); updateConnectionStatus(false, "Connecting..."); try { mqtt = new Paho.MQTT.Client(config.host, Number(config.port), clientID); mqtt.onConnectionLost = onConnectionLost; mqtt.onMessageArrived = handleMessage; mqtt.connect(config.options); } catch (error) { console.error("Error creating MQTT client:", error); updateConnectionStatus(false, "MQTT Error: " + error.message); } }
+        function onConnectionLost(responseObject) { console.log("Connection lost:", responseObject.errorCode, responseObject.errorMessage); updateConnectionStatus(false, "Connection lost. Reconnecting..."); if (responseObject.errorCode !== 0) { setTimeout(MQTTconnect, reconnectTimeout); } }
+        
+        function changeBodyBg(color) { document.body.style.background = color; }
+        
+        function updateTemperatureBackground(tempString) {
+            const temp = parseFloat(tempString);
+            let fallbackColor = '#45B8AC'; 
+
+            if (isNaN(temp)) {
+                changeBodyBg(fallbackColor);
+                return;
+            }
+
+            if (temp <= 0) { changeBodyBg('#7CA6DE'); }       
+            else if (temp < 5) { changeBodyBg('#009cdc'); }      
+            else if (temp < 10) { changeBodyBg('#45B8AC'); }     
+            else if (temp < 15) { changeBodyBg('#f3c12c'); }    
+            else if (temp < 20) { changeBodyBg('#ff9926'); }    
+            else if (temp < 25) { changeBodyBg('#f2552c'); }    
+            else { changeBodyBg('#dc343b');} /* temp >= 25 */
+        }
+
+        function handleMessage(msg) {
+            const topic = msg.destinationName; const payload = msg.payloadString;
+            function updateElement(id, value) { const el = document.getElementById(id); if (el) el.innerHTML = value; }
+            
+            const updates = {
+                'personal/ucfnaps/downhamweather/tempmax': () => updateElement("vd_tempmax", payload),
+                'personal/ucfnaps/downhamweather/tempmin': () => updateElement("vd_tempmin", payload),
+                'personal/ucfnaps/downhamweather/pressuremax': () => updateElement("vd_baromax", payload),
+                'personal/ucfnaps/downhamweather/pressuremin': () => updateElement("vd_baromin", payload),
+                'personal/ucfnaps/downhamweather/barotrend': () => {
+                    const value = payload.replace('mbar', '').trim(); 
+                    updateElement("vd_pbarohour", value); 
+                    const pressurehour = parseFloat(value); let trendText = "steady";
+                    if (pressurehour >= 2.0) trendText = "rising rapidly"; 
+                    else if (pressurehour > 0.7) trendText = "rising";
+                    else if (pressurehour < -0.7 && pressurehour > -2.0) trendText = "falling";
+                    else if (pressurehour <= -2.0) trendText = "falling rapidly";
+                    updateElement("vd_pressurestate", trendText); 
+                },
+                'personal/ucfnaps/downhamweather/temptrend': () => updateElement("vd_temptrend_val", payload.replace('°C','')),
+                'personal/ucfnaps/downhamweather/windmax': () => updateElement("vd_windmaxgust", payload),
+                'personal/ucfnaps/eink/met/headline': () => updateElement("currentcond", payload),
+                'personal/ucfnaps/airquality/davisaqi': () => updateElement("vd_aqi", payload),
+                'personal/ucfnaps/airquality/davisquality': () => updateElement("vd_aqiquality", payload),
+                'personal/ucfnaps/airquality/davispm25': () => updateElement("vd_pmtwo", payload),
+                'personal/ucfnaps/airquality/davispm10': () => updateElement("vd_pmten", payload),
+                'personal/ucfnaps/airquality/davistrend': () => updateElement("vd_pmtrend_aqi", payload),
+                'personal/ucfnaps/environ/marham': () => updateElement("vd_marham", payload),
+                'personal/ucfnaps/environ/ely': () => updateElement("vd_ely", payload),
+                'personal/ucfnaps/environ/denver': () => updateElement("vd_denver", payload),
+            };
+            if (updates[topic]) updates[topic]();
+
+            if (topic === 'personal/ucfnaps/downhamweather/loop') {
+                try {
+                    const data = JSON.parse(payload);
+                    function safeNum(val, dec = 1) { const n = parseFloat(val); return isNaN(n) ? val : n.toFixed(dec); }
+                    
+                    if (data.outTemp_C !== undefined) {
+                        updateElement("vd_temp", safeNum(data.outTemp_C));
+                        updateTemperatureBackground(data.outTemp_C); 
+                    }
+                    if (data.appTemp_C !== undefined) updateElement("vd_apptemp_vert", safeNum(data.appTemp_C));
+                    if (data.windSpeed_mph !== undefined) updateElement("vd_wind_speed", safeNum(data.windSpeed_mph));
+                    if (data.windDir !== undefined) updateElement("vd_winddir", getWindDirection(parseFloat(data.windDir) || 0));
+                    if (data.windSpeed10_mps !== undefined) updateElement("vd_windspeed10", safeNum(parseFloat(data.windSpeed10_mps) * 2.23694));
+                    if (data.windSpeed_mph !== undefined) updateElement("vd_beaufort", getBeaufortScale(parseFloat(data.windSpeed_mph) || 0));
+                    if (data.dayRain_mm !== undefined) updateElement("vd_rain_daily", safeNum(data.dayRain_mm));
+                    if (data.rainRate_mm_per_hour !== undefined) updateElement("vd_rainrate", safeNum(data.rainRate_mm_per_hour));
+                    if (data.barometer_mbar !== undefined) updateElement("vd_baro", safeNum(data.barometer_mbar));
+                    if (data.radiation_Wpm2 !== undefined) updateElement("vd_solar", safeNum(data.radiation_Wpm2, 0));
+                    if (data.UV !== undefined) updateElement("vd_uv", safeNum(data.UV, 0));
+                    if (data.dewpoint_C !== undefined) updateElement("vd_dewpoint", safeNum(data.dewpoint_C));
+                    if (data.outHumidity !== undefined) updateElement("vd_humidity", safeNum(data.outHumidity, 0));
+                    if (data.cloudbase_meter !== undefined) updateElement("vd_cloudheight", safeNum(data.cloudbase_meter, 0));
+                    
+                } catch (e) { console.error("Error parsing loop data:", e, "Payload:", payload); }
+            }
+        }
+        
+        async function fetchWeatherForecast() { try { const lat = 52.5; const lon = 0.5; const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=temperature_2m_max,temperature_2m_min,weathercode,precipitation_sum&timezone=Europe/London&forecast_days=5`; const response = await fetch(url); if (!response.ok) throw new Error(`Forecast HTTP error! status: ${response.status}`); const data = await response.json(); displayForecast(data); } catch (error) { console.error("Error fetching forecast:", error); displayForecastError(); } }
+        function displayForecast(data) { const grid = document.getElementById('forecast-grid'); if (!grid || !data.daily) return; grid.innerHTML = ''; const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']; for (let i = 0; i < Math.min(5, data.daily.time.length); i++) { const date = new Date(data.daily.time[i]); const dayName = i === 0 ? 'Today' : days[date.getDay()]; const maxT = Math.round(data.daily.temperature_2m_max[i]); const minT = Math.round(data.daily.temperature_2m_min[i]); const code = data.daily.weathercode[i]; const precip = data.daily.precipitation_sum[i] || 0; const weatherInfo = getWeatherInfo(code); const card = document.createElement('div'); card.className = 'forecast-card'; card.innerHTML = ` <div class="forecast-day">${dayName}</div> <div class="forecast-icon">${weatherInfo.icon}</div> <div class="forecast-temps"><span class="forecast-high">${maxT}°</span><span class="forecast-low">${minT}°</span></div> <div class="forecast-condition">${weatherInfo.description}</div> ${precip > 0 ? `<div class="forecast-condition">${precip.toFixed(1)}mm</div>` : ''}`; grid.appendChild(card); } }
+        function displayForecastError() { const grid = document.getElementById('forecast-grid'); if (!grid) return; grid.innerHTML = `<div class="forecast-card"><div class="forecast-day">Error</div><div class="forecast-icon"><i class="fas fa-exclamation-triangle"></i></div><div class="forecast-temps"><span class="forecast-high">--°</span><span class="forecast-low">--°</span></div><div class="forecast-condition">Forecast unavailable</div></div>`; }
+        function getWeatherInfo(code) { const map = { 0:{icon:'<i class="wi wi-day-sunny"></i>',description:'Clear sky'},1:{icon:'<i class="wi wi-day-cloudy"></i>',description:'Mainly clear'},2:{icon:'<i class="wi wi-cloud"></i>',description:'Partly cloudy'},3:{icon:'<i class="wi wi-cloudy"></i>',description:'Overcast'},45:{icon:'<i class="wi wi-fog"></i>',description:'Fog'},48:{icon:'<i class="wi wi-fog"></i>',description:'Rime fog'},51:{icon:'<i class="wi wi-sprinkle"></i>',description:'Light drizzle'},53:{icon:'<i class="wi wi-sprinkle"></i>',description:'Moderate drizzle'},55:{icon:'<i class="wi wi-showers"></i>',description:'Dense drizzle'},56:{icon:'<i class="wi wi-rain-mix"></i>',description:'Light freezing drizzle'},57:{icon:'<i class="wi wi-rain-mix"></i>',description:'Dense freezing drizzle'},61:{icon:'<i class="wi wi-showers"></i>',description:'Slight rain'},63:{icon:'<i class="wi wi-rain"></i>',description:'Moderate rain'},65:{icon:'<i class="wi wi-rain-wind"></i>',description:'Heavy rain'},66:{icon:'<i class="wi wi-sleet"></i>',description:'Light freezing rain'},67:{icon:'<i class="wi wi-sleet"></i>',description:'Heavy freezing rain'},71:{icon:'<i class="wi wi-snow"></i>',description:'Slight snow'},73:{icon:'<i class="wi wi-snow"></i>',description:'Moderate snow'},75:{icon:'<i class="wi wi-snow-wind"></i>',description:'Heavy snow'},77:{icon:'<i class="wi wi-snow"></i>',description:'Snow grains'},80:{icon:'<i class="wi wi-showers"></i>',description:'Slight rain showers'},81:{icon:'<i class="wi wi-rain"></i>',description:'Moderate rain showers'},82:{icon:'<i class="wi wi-storm-showers"></i>',description:'Violent rain showers'},85:{icon:'<i class="wi wi-snow"></i>',description:'Slight snow showers'},86:{icon:'<i class="wi wi-snow-wind"></i>',description:'Heavy snow showers'},95:{icon:'<i class="wi wi-thunderstorm"></i>',description:'Thunderstorm'},96:{icon:'<i class="wi wi-storm-showers"></i>',description:'Thunderstorm with hail'},99:{icon:'<i class="wi wi-lightning"></i>',description:'Severe thunderstorm'} }; return map[code] || { icon: '<i class="wi wi-na"></i>', description: 'Unknown' }; }
+        function getWindDirection(degrees) { const dirs = ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW']; return dirs[Math.round(degrees / 22.5) % 16]; }
+        function getBeaufortScale(ws) { if(ws<1)return"calm";if(ws<4)return"light air";if(ws<7)return"light breeze";if(ws<11)return"gentle breeze";if(ws<17)return"moderate breeze";if(ws<22)return"fresh breeze";if(ws<28)return"strong breeze";if(ws<34)return"near gale";if(ws<41)return"gale";if(ws<48)return"strong gale";if(ws<56)return"storm";if(ws<64)return"violent storm";return"hurricane"; }
+        
+        function matchRadarPanelHeight() {
+            const dataPanelContainer = document.querySelector('.vertical-data-panel-container');
+            const radarElementContainer = document.querySelector('.radar-main-container'); 
+
+            if (dataPanelContainer && radarElementContainer && window.innerWidth > 900) { 
+                const dataPanelHeight = dataPanelContainer.offsetHeight;
+                if (dataPanelHeight > 0) {
+                    radarElementContainer.style.height = `${dataPanelHeight}px`;
+                }
+            } else if (radarElementContainer) {
+                radarElementContainer.style.height = ''; 
+            }
+        }
+
+        function enableTestMode() { 
+            console.log("Enabling test mode"); 
+            updateConnectionStatus(true,"Demo Mode"); 
+            function uE(id,v){const e=document.getElementById(id);if(e)e.innerHTML=v;} 
+            const t=15+Math.random()*10,w=5+Math.random()*15,r=Math.random()>.7?Math.random()*5:0,p=1010+Math.random()*10,h=40+Math.random()*40,wd=Math.floor(Math.random()*360); 
+            uE("vd_temp",t.toFixed(1));
+            uE("vd_apptemp_vert", (t-1+Math.random()*2).toFixed(1)); 
+            uE("vd_tempmax",(t-3).toFixed(1));
+            uE("vd_tempmin",(t+4).toFixed(1));
+            uE("vd_temptrend_val",(Math.random()*.5-.25).toFixed(1));
+            const windSpeedText = w.toFixed(1); 
+            uE("vd_wind_speed",windSpeedText); 
+            const windDirText = getWindDirection(wd); 
+            uE("vd_winddir",windDirText); 
+            uE("vd_windmaxgust",(w*1.5).toFixed(1)); 
+            uE("vd_humidity", h.toFixed(0)); 
+            uE("vd_rain_daily",r.toFixed(1));
+            uE("vd_rainrate",r>0?(r/3).toFixed(1):"0.0");
+            uE("vd_baro",p.toFixed(1));
+            const pT=Math.random()*2-1;
+            let trTxt="steady";
+            if(pT>.7)trTxt="rising";
+            else if(pT<-.7)trTxt="falling";
+            uE("vd_pressurestate",trTxt); 
+            updateElement("vd_pbarohour", pT.toFixed(1)); 
+            const currentCondText = ["Partly cloudy","Clear skies","Overcast"][Math.floor(Math.random()*3)]; 
+            uE("currentcond",currentCondText); 
+            updateTemperatureBackground(t.toFixed(1)); 
+            uE("vd_cloudheight", Math.floor(1000+Math.random()*2000)); 
+            uE("vd_solar", Math.floor(Math.random()*800)); 
+            uE("vd_uv", Math.floor(Math.random()*10)); 
+            uE("vd_dewpoint", (t-5).toFixed(1)); 
+            uE("vd_windspeed10", (w*.8).toFixed(1)); 
+            uE("vd_beaufort", getBeaufortScale(w)); 
+            uE("vd_aqi", Math.floor(Math.random()*100)); 
+            uE("vd_aqiquality", "Good"); 
+            uE("vd_pmtwo", (Math.random()*20).toFixed(1)); 
+            uE("vd_pmten", (Math.random()*40).toFixed(1)); 
+            uE("vd_pmtrend_aqi", "Stable"); 
+            matchRadarPanelHeight(); 
+        }
+
+        function toggleTheme() { 
+            const b=document.body,i=document.getElementById('theme-icon');
+            b.classList.toggle('light-mode');
+            i.className=b.classList.contains('light-mode')?'fas fa-sun':'fas fa-moon'; 
+        }
+
+        setTimeout(function(){
+            const s=document.getElementById('mqttconnection');
+            if(s.classList.contains('disconnected')&&!s.textContent.includes('Demo')){
+                if(s.textContent.includes('failed')||s.textContent.includes('Reconnecting')){
+                    s.innerHTML='<span class="status-dot"></span><span>Click to retry • Ctrl+Click for demo</span>';
+                }
+            }
+        },15000);
+                
+        document.addEventListener('DOMContentLoaded',function(){
+            if(typeof Paho==='undefined'||typeof Paho.MQTT==='undefined'){
+                updateConnectionStatus(false,"MQTT library error. Refresh.");
+                return;
+            } 
+            MQTTconnect();
+            fetchWeatherForecast(); 
+            matchRadarPanelHeight(); 
+            
+            document.querySelectorAll('span[id]').forEach(el=>{
+                if(el.textContent==='--')el.classList.add('loading')
+            });
+            
+            document.getElementById('mqttconnection').addEventListener('click',function(ev){
+                if(this.classList.contains('disconnected')){
+                    if(ev.ctrlKey||ev.metaKey){enableTestMode()} 
+                    else if(!this.textContent.includes("Demo")){reconnectAttempts=0;MQTTconnect()}
+                }
+            });
+            
+            window.addEventListener('resize', matchRadarPanelHeight);
+        });
+
+        const observer=new MutationObserver(function(mutations){
+            mutations.forEach(function(mutation){
+                if(mutation.target.textContent!=='--' && 
+                   mutation.target.textContent.trim()!=='' && 
+                   !mutation.target.textContent.includes('Loading')){
+                    mutation.target.classList.remove('loading');
+                } else if(mutation.target.textContent==='--' && 
+                          !mutation.target.classList.contains('loading')){
+                    mutation.target.classList.add('loading');
+                }
+            })
+        });
+
+        document.addEventListener('DOMContentLoaded',()=>{
+            document.querySelectorAll('span[id]').forEach(el=>{
+                observer.observe(el,{childList:true,characterData:true,subtree:true})
+            })
+        });
+                
+        window.onerror=function(msg,url,line,col,error){
+            console.error('Global error:',msg,url,line,col,error);
+            return false; 
+        };
+    </script>
+</body>
+</html>
