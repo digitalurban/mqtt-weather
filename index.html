@@ -39,18 +39,45 @@
 			$("#mqttconnection").html("mqtt: disconnected");	
         }
 		
-	 	function onConnect() {
-	  // Once a connection has been made, make a subscription and send a message.
-	
-		console.log("Connected ");
-		$("#mqttconnection").html("mqtt: connected");	
+	 <!--MQTT Connect-->
+		  
+	 
+	 <script type = "text/javascript" language = "javascript">
+		var mqtt;
+		var reconnectTimeout = 2000;
+
+		var host = "";
+		var port = 0;
+		var options = {}; 
+
+		if (location.protocol !== 'https:') {
+   			port = 8080;
+			host = "mqtt.cetools.org";  
+			options = {
+				timeout: 3,
+				onSuccess: onConnect,
+				onFailure: onFailure,
+				useSSL: false,
+			}; 
+		}
+		else {
+    		port = 8081;
+			host = "mqtt.cetools.org";  
+			options = {
+				timeout: 3,
+				onSuccess: onConnect,
+				onFailure: onFailure,
+				useSSL: true,
+			}; 
+		}
+		var clientID = "clientID" + parseInt(Math.random() * 100); 
 		
-     // Subscribe to topics
-			
-		mqtt.subscribe("personal/ucfnaps/#");	
+		function onFailure(message) {
+			console.log("Connection Attempt to Host "+host+"Failed");
+			setTimeout(MQTTconnect, reconnectTimeout);
+			$("#mqttconnection").html("mqtt: disconnected");	
+        }
 		
-	
-	  }
 		 
 	  function MQTTconnect() {
 		console.log("connecting to "+ host +" "+ port);
