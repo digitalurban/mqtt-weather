@@ -31,7 +31,7 @@
 		var port=8081;
 
 	    client = new Paho.MQTT.Client("www.finchamweather.co.uk", 8081, "myClientId");
-        client.useSSL = true;
+        client.useSSL = false;
 		
 		function onFailure(message) {
 			console.log("Connection Attempt to Host "+host+"Failed");
