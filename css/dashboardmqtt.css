@@ -11,7 +11,10 @@ body {
     bottom: 0;
 	right: 20;
 }
-
+h2 {
+  margin-top: 20px; /* Adds space above the text */
+  margin-bottom: 0px; /* Removes extra space below it */
+}
 
 
 
