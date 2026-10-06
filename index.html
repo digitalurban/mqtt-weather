@@ -7,6 +7,27 @@
   <!--Style Sheets-->
   <link href="./css/dashboardmqtt.css" rel="stylesheet" type="text/css"/>
   <link href="./weather-icons-master/css/weather-icons.css" rel="stylesheet" type="text/css"/>
+  <style>
+    /* forecast banner: regular-weight Gill Sans to match the tile labels,
+       with only the Today / Tonight labels picked out */
+    #top { position: relative; overflow: hidden; }
+    #left {
+      width: 78%;
+      font-weight: 400;
+      font-variant: normal;
+      font-size: 22px;
+      line-height: 1.35;
+      letter-spacing: 0.04em;
+    }
+    #left b { font-weight: 600; letter-spacing: 0.08em; }
+    #mqttconnection {
+      font-family: "Gill Sans", "Gill Sans MT", "Myriad Pro", Helvetica, Arial, sans-serif;
+      font-size: 13px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      opacity: 0.8;
+    }
+  </style>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.js" type="text/javascript"></script>
