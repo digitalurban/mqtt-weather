@@ -33,6 +33,24 @@
   // at night "clear" / "mainly clear" read better as this
   var NIGHT = { 0: "clear skies", 1: "mostly clear", 2: "partly cloudy" };
 
+  // Erik Flowers' Weather Icons (already in the repo) for the current hour
+  function iconClass(c, day) {
+    var d = day ? "day-" : "night-alt-";
+    if (c === 0) return day ? "wi-day-sunny" : "wi-night-clear";
+    if (c === 1) return day ? "wi-day-sunny-overcast" : "wi-night-alt-partly-cloudy";
+    if (c === 2) return "wi-" + d + "cloudy";
+    if (c === 3) return "wi-cloudy";
+    if (c === 45 || c === 48) return day ? "wi-day-fog" : "wi-night-fog";
+    if (c >= 51 && c <= 57) return "wi-" + d + "sprinkle";
+    if (c === 61 || c === 63) return "wi-" + d + "rain";
+    if (c === 65) return "wi-rain";
+    if (c === 66 || c === 67) return "wi-" + d + "sleet";
+    if ((c >= 71 && c <= 77) || c === 85 || c === 86) return "wi-" + d + "snow";
+    if (c >= 80 && c <= 82) return "wi-" + d + "showers";
+    if (c >= 95) return "wi-" + d + "thunderstorm";
+    return "wi-na";
+  }
+
   var COMPASS = ["N","NNE","NE","ENE","E","ESE","SE","SSE","S","SSW","SW","WSW","W","WNW","NW","NNW"];
   function compass(d) { return d == null ? "" : COMPASS[Math.round(d / 22.5) % 16]; }
   function windWord(m) {
@@ -69,7 +87,7 @@
   function url() {
     return "https://api.open-meteo.com/v1/forecast?latitude=" + LAT + "&longitude=" + LON +
       "&hourly=temperature_2m,precipitation_probability,weather_code,wind_speed_10m,wind_gusts_10m,wind_direction_10m" +
-      "&daily=sunrise,sunset" +
+      "&daily=sunrise,sunset&current=weather_code,is_day" +
       "&timezone=Europe%2FLondon&wind_speed_unit=mph&forecast_days=3&cacheburst=" + Date.now();
   }
 
@@ -173,7 +191,14 @@
   function load() {
     fetch(url(), { cache: "no-store" })
       .then(function (r) { if (!r.ok) throw new Error("Open-Meteo " + r.status); return r.json(); })
-      .then(function (j) { var t = build(j); if (t) show(t); })
+      .then(function (j) {
+        var t = build(j); if (t) show(t);
+        var ic = document.getElementById("fcicon");
+        if (ic && j.current && j.current.weather_code != null) {
+          ic.className = "wi " + iconClass(j.current.weather_code, j.current.is_day !== 0);
+          ic.title = "Now: " + (WMO[j.current.weather_code] || "");
+        }
+      })
       .catch(function (e) { console.warn("Banner forecast unavailable:", e); });
   }
 

@@ -10,16 +10,21 @@
   <style>
     /* forecast banner: regular-weight Gill Sans to match the tile labels,
        with only the Today / Tonight labels picked out */
-    #top { position: relative; overflow: hidden; }
+    #top { position: relative; }
     #left {
-      width: 78%;
+      width: 80%;
+      display: flex;
+      align-items: center;
+      gap: 22px;
       font-weight: 400;
       font-variant: normal;
-      font-size: 22px;
-      line-height: 1.35;
+      font-size: 17px;
+      line-height: 1.4;
       letter-spacing: 0.04em;
     }
     #left b { font-weight: 600; letter-spacing: 0.08em; }
+    #fcicon { font-size: 46px; line-height: 1; flex: 0 0 auto; }
+    #fcicon:not([class*="wi-"]) { display: none; }
     #mqttconnection {
       font-family: "Gill Sans", "Gill Sans MT", "Myriad Pro", Helvetica, Arial, sans-serif;
       font-size: 13px;
@@ -219,8 +224,8 @@
 <div id="dashboard">
 
 <div id="top">
-  <div id="left"><span id="currentcond"></span></div>
-  <div id="mqttconnection" style="position:absolute;right:8px;top:8px;color:white">mqtt: connecting</div>
+  <div id="left"><i id="fcicon" class="wi" title=""></i><span id="currentcond"></span></div>
+  <div id="mqttconnection" style="position:absolute;right:20px;top:8px;color:white;white-space:nowrap">mqtt: connecting</div>
 </div>
 
 <!-- Full dashboard HTML preserved exactly as before -->
