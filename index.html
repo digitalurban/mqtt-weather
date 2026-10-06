@@ -28,6 +28,11 @@
       font-size: 15px;
       line-height: 1.45;
       letter-spacing: 0.04em;
+      /* stop mobile browsers "boosting" this paragraph — the page has no
+         viewport tag, so phones render it as a scaled-down desktop page and
+         inflate long text blocks */
+      -webkit-text-size-adjust: 100%;
+      text-size-adjust: 100%;
     }
     #left b { font-weight: 600; letter-spacing: 0.08em; }
     #fcicon { font-size: 50px; line-height: 1; color: white; }
@@ -238,7 +243,7 @@
     $(function() { MQTTconnect(); });
   </script>
 </head>
-<body class="top">
+<body class="top" style="-webkit-text-size-adjust:100%;text-size-adjust:100%">
 
 <div id="dashboard">
 
