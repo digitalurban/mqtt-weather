@@ -49,6 +49,11 @@
     #mqttconnection[data-state="connected"] { background: white; }
     #mqttconnection[data-state="connecting"] { animation: mqttpulse 1.2s ease-in-out infinite; }
     @keyframes mqttpulse { 50% { opacity: 0.25; } }
+
+    /* soft blink when a reading actually changes */
+    @keyframes softblink { 0% { opacity: 1; } 35% { opacity: 0.4; } 100% { opacity: 1; } }
+    .blink { animation: softblink 0.45s ease-in-out; }
+    body { transition: background-color 2s ease; }
   </style>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
@@ -241,6 +246,35 @@
     }
 
     $(function() { MQTTconnect(); });
+  </script>
+
+  <script>
+    /* Soft blink on change. Watches every reading on the page and blinks it
+       only when its text is different from last time, so the 2–3 s loop
+       packets don't make unchanged tiles flicker. */
+    (function () {
+      function watch() {
+        var els = document.querySelectorAll(".dataValue span, .dataText span");
+        var obs = new MutationObserver(function (muts) {
+          muts.forEach(function (m) {
+            var el = m.target.nodeType === 3 ? m.target.parentNode : m.target;
+            var now = el.textContent;
+            if (el.__last === undefined || el.__last === "loading") { el.__last = now; return; }
+            if (now === el.__last) return;
+            el.__last = now;
+            el.classList.remove("blink");
+            void el.offsetWidth;          // restart the animation
+            el.classList.add("blink");
+          });
+        });
+        Array.prototype.forEach.call(els, function (el) {
+          el.__last = el.textContent.trim();
+          obs.observe(el, { childList: true, characterData: true, subtree: true });
+        });
+      }
+      if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", watch);
+      else watch();
+    })();
   </script>
 </head>
 <body class="top" style="-webkit-text-size-adjust:100%;text-size-adjust:100%">
