@@ -17,7 +17,8 @@
 	   
 	   <link href="./weather-icons-master/css/weather-icons.css" rel="stylesheet" type="text/css"/>
 	   
-	   <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
+	   <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
+	   <script src="./js/forecast-headline.js"></script>
 
   	   <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.js" type="text/javascript"></script>
 	   
@@ -163,13 +164,7 @@
 			console.log(windmax);
 				}    
 			     
-// Headline Forecast
-			
-			 if(msg.destinationName == "personal/ucfnaps/eink/met/headline"){   
-			headline=msg.payloadString;
-		 	$("#currentcond").html(headline);
-			console.log(headline);
-				}    
+// Headline Forecast now comes from Open-Meteo — see js/forecast-headline.js    
 			  
 			  
 			//Davis AQI	  

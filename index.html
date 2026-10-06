@@ -8,8 +8,10 @@
   <link href="./css/dashboardmqtt.css" rel="stylesheet" type="text/css"/>
   <link href="./weather-icons-master/css/weather-icons.css" rel="stylesheet" type="text/css"/>
 
-  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.js" type="text/javascript"></script>
+  <!-- banner day/night forecast from Open-Meteo (replaces the dead Met Office MQTT headline) -->
+  <script src="./js/forecast-headline.js"></script>
 
   <script type="text/javascript">
     // helper
@@ -84,7 +86,6 @@
         "personal/ucfnaps/downhamweather/tempmin": "#tempmin",
         "personal/ucfnaps/downhamweather/pressuremax": "#baromax",
         "personal/ucfnaps/downhamweather/pressuremin": "#baromin",
-        "personal/ucfnaps/eink/met/headline": "#currentcond",
         "personal/ucfnaps/airquality/davisaqi": "#AQI",
         "personal/ucfnaps/airquality/davisquality": "#aqiquality",
         "personal/ucfnaps/airquality/davispm25": "#pmtwo",
