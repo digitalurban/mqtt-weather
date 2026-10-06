@@ -12,14 +12,15 @@
        with only the Today / Tonight labels picked out */
     /* banner laid out on the same 16% grid as the tile rows, so the
        forecast icon sits in the icon column */
-    #top { position: relative; white-space: nowrap; }
-    #top .fc-cell { position: relative; left: -10px; } /* rows carry extra inter-tile spacing */
-    #top .fc-cell, #top .fc-text { display: inline-block; vertical-align: middle; white-space: normal; }
-    #top .fc-cell { width: 16%; text-align: center; }
+    /* banner: icon in the same column as the row icons, text left-aligned
+       just after it, room on the right for the status dot */
+    #top { position: relative; display: flex; align-items: center; text-align: left; }
+    #top .fc-cell { flex: 0 0 auto; width: 16%; margin-left: calc(2% - 10px); text-align: center; }
     #left {
       float: none;
-      width: 80%;
-      margin: 0;
+      flex: 1 1 auto;
+      width: auto;
+      margin: 0 48px 0 calc(-8% + 59px);
       padding: 0;
       text-align: left;
       font-weight: 400;
@@ -48,7 +49,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.js" type="text/javascript"></script>
   <!-- banner day/night forecast from Open-Meteo (replaces the dead Met Office MQTT headline) -->
-  <script src="./js/forecast-headline.js?v=20261006b"></script>
+  <script src="./js/forecast-headline.js?v=20261006c"></script>
 
   <script type="text/javascript">
     // helper
