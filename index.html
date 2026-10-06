@@ -10,34 +10,45 @@
   <style>
     /* forecast banner: regular-weight Gill Sans to match the tile labels,
        with only the Today / Tonight labels picked out */
-    #top { position: relative; }
+    /* banner laid out on the same 16% grid as the tile rows, so the
+       forecast icon sits in the icon column */
+    #top { position: relative; white-space: nowrap; }
+    #top .fc-cell { position: relative; left: -10px; } /* rows carry extra inter-tile spacing */
+    #top .fc-cell, #top .fc-text { display: inline-block; vertical-align: middle; white-space: normal; }
+    #top .fc-cell { width: 16%; text-align: center; }
     #left {
+      float: none;
       width: 80%;
-      display: flex;
-      align-items: center;
-      gap: 22px;
+      margin: 0;
+      padding: 0;
+      text-align: left;
       font-weight: 400;
       font-variant: normal;
-      font-size: 17px;
-      line-height: 1.4;
+      font-size: 15px;
+      line-height: 1.45;
       letter-spacing: 0.04em;
     }
     #left b { font-weight: 600; letter-spacing: 0.08em; }
-    #fcicon { font-size: 46px; line-height: 1; flex: 0 0 auto; }
-    #fcicon:not([class*="wi-"]) { display: none; }
+    #fcicon { font-size: 50px; line-height: 1; color: white; }
+    #fcicon:not([class*="wi-"]) { visibility: hidden; }
+
+    /* MQTT status: a small dot — solid when connected, hollow when not,
+       pulsing while it connects. Hover for the text. */
     #mqttconnection {
-      font-family: "Gill Sans", "Gill Sans MT", "Myriad Pro", Helvetica, Arial, sans-serif;
-      font-size: 13px;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      opacity: 0.8;
+      position: absolute; right: 18px; top: 4px;
+      width: 9px; height: 9px; border-radius: 50%;
+      border: 1.5px solid white; box-sizing: border-box;
+      background: transparent; opacity: 0.9;
     }
+    #mqttconnection[data-state="connected"] { background: white; }
+    #mqttconnection[data-state="connecting"] { animation: mqttpulse 1.2s ease-in-out infinite; }
+    @keyframes mqttpulse { 50% { opacity: 0.25; } }
   </style>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.js" type="text/javascript"></script>
   <!-- banner day/night forecast from Open-Meteo (replaces the dead Met Office MQTT headline) -->
-  <script src="./js/forecast-headline.js"></script>
+  <script src="./js/forecast-headline.js?v=20261006b"></script>
 
   <script type="text/javascript">
     // helper
@@ -59,9 +70,16 @@
       port = 8081;
     }
 
+    function setConn(state) {
+      var el = document.getElementById("mqttconnection");
+      if (!el) return;
+      el.setAttribute("data-state", state);
+      el.title = "MQTT " + state;
+    }
+
     function onConnect() {
       console.log("MQTT connected to " + host + ":" + port + " as " + clientID);
-      $("#mqttconnection").html("mqtt: connected");
+      setConn("connected");
 
       // subscribe to relevant topics
       try { mqtt.subscribe("personal/ucfnaps/#"); }
@@ -72,13 +90,13 @@
 
     function onFailure(message) {
       console.log("Connection attempt to host " + host + " failed", message);
-      $("#mqttconnection").html("mqtt: disconnected");
+      setConn("disconnected");
       setTimeout(MQTTconnect, reconnectTimeout);
     }
 
     function onConnectionLost(responseObject) {
       console.log("Connection lost", responseObject);
-      $("#mqttconnection").html("mqtt: disconnected");
+      setConn("disconnected");
       if (responseObject && responseObject.errorCode !== 0) {
         setTimeout(MQTTconnect, reconnectTimeout);
       }
@@ -224,8 +242,9 @@
 <div id="dashboard">
 
 <div id="top">
-  <div id="left"><i id="fcicon" class="wi" title=""></i><span id="currentcond"></span></div>
-  <div id="mqttconnection" style="position:absolute;right:20px;top:8px;color:white;white-space:nowrap">mqtt: connecting</div>
+  <div class="fc-cell"><i id="fcicon" class="wi"></i></div><div class="fc-text" id="left"><span id="currentcond"></span></div>
+  <div id="mqttconnection" data-state="connecting" title="MQTT connecting"></div>
+</div>
 </div>
 
 <!-- Full dashboard HTML preserved exactly as before -->
